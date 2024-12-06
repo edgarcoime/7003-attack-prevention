@@ -87,3 +87,36 @@ table inet filter {
         type filter hook output priority 0; policy accept;
     }
 }
+
+
+# DEFENDING against Ping of death 
+table inet filter {
+    chain input {
+        type filter hook input priority 0; policy accept;
+
+        # Drop ICMP packets larger than 2048 bytes
+        ip protocol icmp ip length gt 2048 log prefix "JUMBO - Dropped oversized ICMP: " drop
+
+        # Accept established and related connections
+        ct state established,related accept
+
+        # Accept loopback traffic
+        iifname lo accept
+
+        # Drop invalid packets
+        ct state invalid drop
+    }
+    chain forward {
+        type filter hook forward priority 0; policy accept;
+    }
+    chain output {
+        type filter hook output priority 0; policy accept;
+    }
+}
+
+limit the size of the ICMP payload
+
+ping -s 65500 192.168.1.128 # does not work gets rejected 
+ping -s 6000 192.168.1.128
+
+
