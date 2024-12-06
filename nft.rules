@@ -129,8 +129,16 @@ table inet filter {
 
     chain output {
         type filter hook output priority 0; policy accept;
+
+        # Log and drop packets with FIN, PSH, and URG flags set (indicative of Xmas tree scan)
+        tcp flags & (fin | psh | urg) == (fin | psh | urg) log prefix "ATK XMAS SCAN - Xmas scan detected: " drop
     }
 }
+
+
+# ATTACKING COMMANDS
+./log_redirect.sh /var/log/syslog ~/code/7003-attack-prevention/atk_nft_xmas_scan.log "ATK XMAS SCAN - "
+nmap -sX <Victim IP> 
 
 
 # DEFENDING against Ping of death 
