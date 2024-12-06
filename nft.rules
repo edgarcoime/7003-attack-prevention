@@ -64,6 +64,7 @@ table inet filter {
 
 
 # ATK commands
+sudo hping3 -S -p 80 --flood 192.168.1.178
 ./log_redirect.sh /var/log/syslog ~/code/7003-attack-prevention/atk_nft_syn_flood.log "ATK SYN FLOOD - "
 
 
@@ -85,11 +86,22 @@ table inet filter {
   }
   chain output {
     type filter hook output priority 0; policy accept;
+
+    # Log and drop excessive outgoing UDP packets to port 53
+    udp dport 53 limit rate over 10/second burst 20 packets log prefix "ATK UDP FLOOD - UDP flood detected: " drop
   }
 }
 
 mac -> kali unprotected   10580
 mac -> kali protected     6575
+
+
+# ATK commands
+./log_redirect.sh /var/log/syslog ~/code/7003-attack-prevention/atk_nft_udp_flood.log "ATK UDP FLOOD - "
+sudo hping3 --udp -p 53 --flood 192.168.1.178
+
+
+
 
 # Defending against XMAS scan
 
