@@ -23,7 +23,7 @@ table inet filter {
 
         tcp flags syn meter syn_flood { ip saddr limit rate 10/second burst 20 packets } accept
 
-        tcp flags syn drop
+        tcp flags syn log prefix "SYN Flood drop: " drop
 
         # syn-flood rate limit
         # tcp flags syn ct state new log prefix "SYN flood dropped: " drop;
@@ -39,22 +39,51 @@ table inet filter {
 
 # DEFENDING AGAINST UDP FLOOD RULE
 table inet filter {
-    chain input {
-        type filter hook input priority 0; policy accept;
+  chain input {
+    type filter hook input priority 0; policy accept;
 
-        # Allow up to 25 UDP packets per second with a burst of 50 packets to port 53
-        udp dport 53 limit rate 25/second burst 50 packets accept
+    # Allow up to 25 UDP packets per second with a burst of 50 packets to port 53
+    udp dport 53 limit rate 10/second burst 20 packets accept
 
-        # Drop excessive UDP packets to port 53
-        udp dport 53 drop
-    }
-    chain forward {
-        type filter hook forward priority 0; policy accept;
-    }
-    chain output {
-        type filter hook output priority 0; policy accept;
-    }
+    # Drop excessive UDP packets to port 53
+    udp dport 53 log prefix "UDP Flood drop: " drop
+  }
+  chain forward {
+    type filter hook forward priority 0; policy accept;
+  }
+  chain output {
+    type filter hook output priority 0; policy accept;
+  }
 }
 
 mac -> kali unprotected   10580
 mac -> kali protected     6575
+
+# Defending against XMAS scan
+
+table inet filter {
+    chain input {
+
+        type filter hook input priority 0; policy accept;
+
+        # Drop and log packets with FIN, PSH, and URG flags set (Xmas scan)
+        tcp flags & (fin | psh | urg) == (fin | psh | urg) log prefix "Dropped Xmas scan: " drop
+
+        # Drop and log packets with only the FIN flag set (FIN scan)
+        tcp flags & (fin | syn | rst | psh | ack | urg) == fin log prefix "Dropped FIN scan: " drop
+
+        # Drop and log packets with no flags set (NULL scan)
+        tcp flags & (fin | syn | rst | psh | ack | urg) == 0x0 log prefix "Dropped NULL scan: " drop
+
+        # Drop and log invalid packets
+        ct state invalid log prefix "Dropped invalid packet: " drop
+    }
+
+    chain forward {
+        type filter hook forward priority 0; policy accept;
+    }
+
+    chain output {
+        type filter hook output priority 0; policy accept;
+    }
+}
