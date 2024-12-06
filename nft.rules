@@ -10,6 +10,27 @@ sudo netstat -tulnp | grep :22
 cat /dev/null > udp_flood.log
 
 
+# DEFAULT NFTABLES RULES
+#!/usr/sbin/nft -f
+
+flush ruleset
+
+table inet filter {
+    chain input {
+        type filter hook input priority 0;
+        policy accept;
+    }
+    chain forward {
+        type filter hook forward priority 0;
+        policy accept;
+    }
+    chain output {
+        type filter hook output priority 0;
+        policy accept;
+    }
+}
+
+
 # DEFENDING AGAINST SYN FLOOD RULE
 #!/usr/sbin/nft -f
 
@@ -23,18 +44,29 @@ table inet filter {
 
         tcp flags syn meter syn_flood { ip saddr limit rate 10/second burst 20 packets } accept
 
-        tcp flags syn log prefix "SYN Flood drop: " drop
-
-        # syn-flood rate limit
-        # tcp flags syn ct state new log prefix "SYN flood dropped: " drop;
+        tcp flags syn log prefix "VIC SYN FLOOD - SYN Flood drop: " drop
     }
+
     chain forward {
         type filter hook forward priority filter;
     }
+
+
+    # ATTACKER Defense to prevent SYN FLOOD
     chain output {
-        type filter hook output priority filter;
+        type filter hook output priority 0; policy accept;
+
+        # Log and drop excessive outgoing SYN packets to port 80
+        tcp dport 80 tcp flags syn limit rate over 10/second burst 20 packets log prefix "ATK SYN FLOOD - SYN flood detected: " drop
     }
 }
+
+
+
+# ATK commands
+./log_redirect.sh /var/log/syslog ~/code/7003-attack-prevention/atk_nft_syn_flood.log "ATK SYN FLOOD - "
+
+
 
 
 # DEFENDING AGAINST UDP FLOOD RULE
