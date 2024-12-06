@@ -163,6 +163,9 @@ table inet filter {
     }
     chain output {
         type filter hook output priority 0; policy accept;
+
+        # Drop ICMP packets larger than 2048 bytes
+        ip protocol icmp ip length gt 2048 log prefix "ATK JUMBO - Dropped oversized ICMP: " drop
     }
 }
 
@@ -170,6 +173,13 @@ limit the size of the ICMP payload
 
 ping -s 65500 192.168.1.128 # does not work gets rejected 
 ping -s 6000 192.168.1.128
+
+# ATTACKING COMMANDS
+ping -s 65500 192.168.1.128 # does not work gets rejected 
+ping -s 6000 192.168.1.128
+./log_redirect.sh /var/log/syslog ~/code/7003-attack-prevention/atk_nft_jumbo_icmp.log "ATK JUMBO - "
+
+
 
 # Defending against Application Buffer Overflow attacks
 table inet filter {
