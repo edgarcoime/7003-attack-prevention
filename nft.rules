@@ -119,4 +119,32 @@ limit the size of the ICMP payload
 ping -s 65500 192.168.1.128 # does not work gets rejected 
 ping -s 6000 192.168.1.128
 
+# Defending against Application Buffer Overflow attacks
+table inet filter {
+    chain input {
+        type filter hook input priority 0; policy accept;
+
+        # Drop and log TCP packets to port 5000 with payload size greater than 512 bytes
+        # DOESNT work 
+        tcp dport 5000 meta length gt th + 512 log prefix "BUFFER OVERFLOW - Dropped oversized TCP payload: " drop
+
+        # Accept established and related connections
+        ct state established,related accept
+
+        # Accept loopback traffic
+        iifname lo accept
+
+        # Drop invalid packets
+        ct state invalid drop
+
+        # Accept other traffic (adjust as needed)
+        # ...
+    }
+    chain forward {
+        type filter hook forward priority 0; policy accept;
+    }
+    chain output {
+        type filter hook output priority 0; policy accept;
+    }
+}
 
