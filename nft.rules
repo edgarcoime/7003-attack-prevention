@@ -1,0 +1,60 @@
+sudo nft -f ./nft.rules
+sudo nft flush ruleset
+
+# see list of ports that are open 
+sudo netstat -tulnp | grep :22
+
+# use the script and clear potential entries
+./log_redirect.sh /var/log/syslog ~/code/7003proj/udp_flood.log "UDP Flood"
+
+cat /dev/null > udp_flood.log
+
+
+# DEFENDING AGAINST SYN FLOOD RULE
+#!/usr/sbin/nft -f
+
+flush ruleset
+
+table inet filter {
+    chain input {
+        # type filter hook input priority filter;
+        # Test
+        type filter hook input priority 0; policy accept;
+
+        tcp flags syn meter syn_flood { ip saddr limit rate 10/second burst 20 packets } accept
+
+        tcp flags syn drop
+
+        # syn-flood rate limit
+        # tcp flags syn ct state new log prefix "SYN flood dropped: " drop;
+    }
+    chain forward {
+        type filter hook forward priority filter;
+    }
+    chain output {
+        type filter hook output priority filter;
+    }
+}
+
+
+# DEFENDING AGAINST UDP FLOOD RULE
+table inet filter {
+    chain input {
+        type filter hook input priority 0; policy accept;
+
+        # Allow up to 25 UDP packets per second with a burst of 50 packets to port 53
+        udp dport 53 limit rate 25/second burst 50 packets accept
+
+        # Drop excessive UDP packets to port 53
+        udp dport 53 drop
+    }
+    chain forward {
+        type filter hook forward priority 0; policy accept;
+    }
+    chain output {
+        type filter hook output priority 0; policy accept;
+    }
+}
+
+mac -> kali unprotected   10580
+mac -> kali protected     6575
